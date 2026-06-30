@@ -27,7 +27,7 @@ async function checkHome() {
       <div class="bili-header__bar">
         <a class="bili-logo" href="//www.bilibili.com"><img alt="B站 b站"></a>
         <ul class="left-entry">
-          <li><a href="//www.bilibili.com">首页</a></li>
+          <li><a class="left-entry__title" href="https://www.bilibili.com/"><svg></svg><div class="mini-header__title"><span>首页</span></div></a></li>
           <li><a>番剧</a></li>
           <li><a>直播</a></li>
           <li><a>游戏中心</a></li>
@@ -64,7 +64,9 @@ async function checkHome() {
   await expectVisible(page, '.bili-logo');
   await expectVisible(page, '.center-search-container');
   await expectVisible(page, '.right-entry');
-  await expectHidden(page, '.left-entry li');
+  await expectVisible(page, '.left-entry li[data-bili-minimal-logo-entry="true"]');
+  await expectHidden(page, '.mini-header__title');
+  await expectHidden(page, '.left-entry li:not([data-bili-minimal-logo-entry="true"])');
   assert(await page.locator('.nav-search-input').first().evaluate((input) => input.placeholder) === '搜索', 'home should replace recommended placeholder');
   await expectVisible(page, '.search-panel');
   await expectVisible(page, '.history-item');
@@ -82,7 +84,7 @@ async function checkVideo() {
   await gotoFixture(page, 'https://www.bilibili.com/video/BV1JPKd6zE4f/', `
     <div class="bili-header__bar">
       <a class="bili-logo" href="//www.bilibili.com"><img alt="B站 b站"></a>
-      <ul class="left-entry"><li><a>首页</a></li><li><a>直播</a></li></ul>
+      <ul class="left-entry"><li><a class="left-entry__title" href="https://www.bilibili.com/"><svg></svg><div class="mini-header__title"><span>首页</span></div></a></li><li><a>直播</a></li></ul>
       <div class="center-search-container"><input class="nav-search-input"></div>
       <ul class="right-entry"><li>消息</li><li>投稿</li></ul>
     </div>
@@ -104,6 +106,8 @@ async function checkVideo() {
 
   await page.waitForFunction(() => document.documentElement.dataset.biliMinimalPage === 'video');
 
+  await expectVisible(page, '.left-entry li[data-bili-minimal-logo-entry="true"]');
+  await expectHidden(page, '.mini-header__title');
   await expectVisible(page, '.video-pod');
   await expectVisible(page, '.up-panel-container');
   await expectVisible(page, '.danmaku-box');
@@ -121,7 +125,7 @@ async function checkSearch() {
   await gotoFixture(page, 'https://search.bilibili.com/all?keyword=%E7%BC%96%E7%A8%8B', `
     <div class="bili-header__bar">
       <a class="bili-logo" href="//www.bilibili.com"><img alt="B站 b站"></a>
-      <ul class="left-entry"><li><a>首页</a></li><li><a>番剧</a></li></ul>
+      <ul class="left-entry"><li><a class="left-entry__title" href="https://www.bilibili.com/"><svg></svg><div class="mini-header__title"><span>首页</span></div></a></li><li><a>番剧</a></li></ul>
       <div class="center-search-container">
         <input class="nav-search-input">
         <div class="search-panel-popover">零基础编程入门教程</div>
@@ -129,12 +133,24 @@ async function checkSearch() {
       <ul class="right-entry"><li>历史</li><li>投稿</li></ul>
     </div>
     <div class="search-page-wrapper">
-      <div class="search-tabs">综合 视频 番剧 直播 专栏 用户</div>
+      <div class="search-tabs">
+        <ul class="vui_tabs--nav">
+          <li class="vui_tabs--nav-item">综合</li>
+          <li class="vui_tabs--nav-item">视频 99+</li>
+          <li class="vui_tabs--nav-item">番剧 1</li>
+          <li class="vui_tabs--nav-item">影视 0</li>
+          <li class="vui_tabs--nav-item">直播 20</li>
+          <li class="vui_tabs--nav-item">专栏 99+</li>
+        </ul>
+      </div>
       <div class="search-condition-row">综合排序 最多播放</div>
       <div class="brand-ad-list">广告</div>
       <div class="activity-game-list search-all-list">活动推广</div>
       <div class="video i_wrapper search-all-list">
-        <div class="video-list row"><div class="bili-video-card">搜索到的视频</div></div>
+        <div class="video-list row">
+          <div class="col_3 normal-result"><div class="bili-video-card">搜索到的视频</div></div>
+          <div class="col_3 live-result"><div class="bili-video-card"><a href="https://live.bilibili.com/123">直播视频</a><div class="bili-video-card__info--living">直播中</div></div></div>
+        </div>
         <div class="vui_pagenation">上一页 1 2 3 下一页</div>
       </div>
       <div class="bili-footer">页脚</div>
@@ -146,9 +162,15 @@ async function checkSearch() {
   await page.waitForFunction(() => document.documentElement.dataset.biliMinimalPage === 'search');
 
   assert(new URL(page.url()).pathname === '/all', 'search should not redirect /all to /video');
+  await expectVisible(page, '.left-entry li[data-bili-minimal-logo-entry="true"]');
+  await expectHidden(page, '.mini-header__title');
   await expectVisible(page, '.search-tabs');
   await expectVisible(page, '.search-condition-row');
-  await expectVisible(page, '.bili-video-card');
+  await expectVisible(page, '.normal-result .bili-video-card');
+  await expectHidden(page, '.live-result');
+  await expectHidden(page, '.vui_tabs--nav-item:nth-child(3)');
+  await expectHidden(page, '.vui_tabs--nav-item:nth-child(4)');
+  await expectHidden(page, '.vui_tabs--nav-item:nth-child(5)');
   await expectVisible(page, '.vui_pagenation');
   await expectVisible(page, '.search-panel-popover');
   await expectHidden(page, '.brand-ad-list');

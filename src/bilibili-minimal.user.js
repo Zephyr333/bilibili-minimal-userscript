@@ -16,9 +16,11 @@
   'use strict';
 
   const HIDDEN = 'data-bili-minimal-hidden';
+  const LOGO_ENTRY = 'data-bili-minimal-logo-entry';
   const HOT_RE = /(?:bilibili|哔哩哔哩)?\s*热搜|热门搜索|大家都在搜|搜索发现/i;
   const UPDATE_RE = /(?:刚刚|分钟前|小时前|天前|昨天|前天).{0,12}更新|更新.{0,12}(?:刚刚|分钟前|小时前|天前|昨天|前天)|已更\d+|更新至/;
   const TOP_NAV_RE = /^(首页|新剧|番剧|直播|游戏中心|会员购|漫画|赛事|下载客户端|MSI)$/;
+  const SEARCH_TAB_HIDE_RE = /^(番剧|影视|直播)(?:\d+|\+|99\+)?$/;
 
   boot();
 
@@ -39,6 +41,16 @@
     style.id = 'bili-minimal-style';
     style.textContent = `
       [${HIDDEN}="true"] {
+        display: none !important;
+      }
+
+      [${LOGO_ENTRY}="true"] {
+        display: flex !important;
+        visibility: visible !important;
+      }
+
+      [${LOGO_ENTRY}="true"] .mini-header__title,
+      [${LOGO_ENTRY}="true"] .left-entry__title span {
         display: none !important;
       }
 
@@ -133,6 +145,7 @@
     markPageType();
     setAutoPlayOff();
     cleanTopBar();
+    cleanLiveEntrypoints();
     cleanSearchInput();
     cleanHotSearch();
 
@@ -166,17 +179,53 @@
   function cleanTopBar() {
     document.querySelectorAll('.left-entry').forEach((entry) => {
       Array.from(entry.children).forEach((child) => {
-        if (!isLogoLike(child)) hide(child);
+        if (isHeaderLogoEntry(entry, child)) {
+          keepHeaderLogoEntry(child);
+          return;
+        }
+
+        hide(child);
       });
     });
 
     document.querySelectorAll('.bili-header__bar a, .mini-header a, header a').forEach((link) => {
+      if (link.closest(`[${LOGO_ENTRY}="true"]`)) return;
       if (link.closest('.right-entry, .center-search-container, .nav-search')) return;
       if (isLogoLike(link)) return;
 
       const label = normalize(link.innerText || link.title || link.getAttribute('aria-label'));
       if (TOP_NAV_RE.test(label)) {
         hide(link.closest('li, .left-entry__title, .download-entry') || link);
+      }
+    });
+  }
+
+  function cleanLiveEntrypoints() {
+    hideAll([
+      '.bili-video-card__info--living',
+      '.bili-video-card__info--living__text',
+      '[class*="live-card"]',
+      '[class*="liveCard"]',
+      '[class*="live-entry"]',
+      '[class*="liveEntry"]',
+      '[class*="living"]',
+    ]);
+
+    document.querySelectorAll('a[href*="live.bilibili.com"]').forEach((anchor) => {
+      const target = getLiveTarget(anchor);
+      if (target) hide(target);
+    });
+
+    document.querySelectorAll('.search-tabs li, .vui_tabs--nav-item').forEach((tab) => {
+      if (SEARCH_TAB_HIDE_RE.test(normalize(tab.innerText || tab.textContent))) hide(tab);
+    });
+
+    document.querySelectorAll('.bili-video-card, .video-list-item, .feed-card, .user-list, .bili-user-card').forEach((card) => {
+      const text = normalize(card.innerText || card.textContent);
+      const hasLiveLink = Boolean(card.querySelector('a[href*="live.bilibili.com"]'));
+      if (hasLiveLink || /直播中/.test(text)) {
+        const target = getLiveTarget(card);
+        if (target) hide(target);
       }
     });
   }
@@ -287,6 +336,8 @@
   }
 
   function cleanSearchPage() {
+    cleanSearchTabs();
+
     hideAll([
       '.brand-ad-list',
       '.activity-game-list.search-all-list',
@@ -314,6 +365,12 @@
     });
 
     hideSearchPageBelowPagination();
+  }
+
+  function cleanSearchTabs() {
+    document.querySelectorAll('.search-tabs li, .vui_tabs--nav-item').forEach((tab) => {
+      if (SEARCH_TAB_HIDE_RE.test(normalize(tab.innerText || tab.textContent))) hide(tab);
+    });
   }
 
   function hideSearchPageBelowPagination() {
@@ -367,6 +424,46 @@
     return Boolean(el?.closest?.(
       '.history, .histories, .history-item, .history-wrap, .histories-wrap, .search-history, .bili-search-history'
     ));
+  }
+
+  function isHeaderLogoEntry(entry, child) {
+    if (child !== entry.firstElementChild) return false;
+
+    const link = child.querySelector('a[href]');
+    if (!link) return false;
+
+    const href = link.href || link.getAttribute('href') || '';
+    return /\/\/www\.bilibili\.com\/?$|^https?:\/\/www\.bilibili\.com\/?$|^\/$/.test(href) &&
+      Boolean(link.querySelector('svg, img') || /首页/.test(normalize(link.innerText || link.textContent)));
+  }
+
+  function keepHeaderLogoEntry(entry) {
+    entry.removeAttribute(HIDDEN);
+    entry.setAttribute(LOGO_ENTRY, 'true');
+
+    const link = entry.querySelector('a[href]');
+    if (link) {
+      link.removeAttribute(HIDDEN);
+      link.setAttribute(LOGO_ENTRY, 'true');
+    }
+
+    entry.querySelectorAll('*').forEach((node) => {
+      if (node.matches('svg, svg *, img')) return;
+      if (node.querySelector('svg, img')) return;
+
+      const text = normalize(node.innerText || node.textContent);
+      if (text === '首页') hide(node);
+    });
+  }
+
+  function getLiveTarget(node) {
+    if (!node || node.nodeType !== 1) return null;
+
+    return node.closest(
+      '.col_3, .col_xs_1_5, .col_md_2, .col_xl_1_7, .video-list-item, .bili-video-card, .feed-card, .search-card, .live-card, .live-card-wrap, ' +
+      '.bili-dyn-list__item, .bili-dyn-card, .dyn-card, .user-list-item, .bili-user-card, ' +
+      'li'
+    ) || node.closest('a[href*="live.bilibili.com"], [class*="live"], [class*="living"]') || node;
   }
 
   function isLogoLike(el) {

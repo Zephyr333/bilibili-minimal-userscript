@@ -119,9 +119,12 @@ async function checkRealSearch() {
   await waitForLayout(page, '.center-search-container');
 
   assert(new URL(page.url()).pathname === '/all', 'real search should not redirect /all to /video');
+  assert(await hasVisibleLogo(page), 'real search should keep logo visible');
   await expectVisible(page, '.search-tabs, .vui_tabs');
   await expectVisible(page, '.video-list, .bili-video-card');
   await expectVisible(page, '.vui_pagenation, .vui_pagination, .pagination');
+  assert(!(await hasVisibleSearchTab(page, /^(番剧|影视|直播)/)), 'real search should hide bangumi/movie/live tabs');
+  assert(!(await hasVisibleLiveEntry(page)), 'real search should hide live result entries');
   await expectHidden(page, '.brand-ad-list, .activity-game-list.search-all-list');
   await expectHidden(page, '.bili-footer');
   await expectHidden(page, '.login-tip, .lt-row');
@@ -158,4 +161,38 @@ async function waitForLayout(page, selector) {
     const rect = el.getBoundingClientRect();
     return rect.width > 0 && rect.height > 0;
   }, selector, { timeout: 20000 }).catch(() => {});
+}
+
+async function hasVisibleSearchTab(page, pattern) {
+  return page.evaluate((source) => {
+    const re = new RegExp(source);
+    const isVisibleElement = (el) => {
+      const style = getComputedStyle(el);
+      const rect = el.getBoundingClientRect();
+      return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
+    };
+
+    return Array.from(document.querySelectorAll('.search-tabs li, .vui_tabs--nav-item')).some((tab) => {
+      const text = String(tab.innerText || tab.textContent || '').replace(/\s+/g, '').trim();
+      return re.test(text) && isVisibleElement(tab);
+    });
+  }, pattern.source);
+}
+
+async function hasVisibleLiveEntry(page) {
+  return page.evaluate(() => {
+    const isVisibleElement = (el) => {
+      const style = getComputedStyle(el);
+      const rect = el.getBoundingClientRect();
+      return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
+    };
+
+    const visibleLiveLinks = Array.from(document.querySelectorAll('a[href*="live.bilibili.com"]'))
+      .filter(isVisibleElement);
+
+    const visibleLiveCards = Array.from(document.querySelectorAll('.bili-video-card, .video-list-item, .feed-card'))
+      .filter((card) => /直播中/.test(String(card.innerText || card.textContent || '')) && isVisibleElement(card));
+
+    return visibleLiveLinks.length > 0 || visibleLiveCards.length > 0;
+  });
 }
