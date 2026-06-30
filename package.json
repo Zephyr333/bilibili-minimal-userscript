@@ -1,0 +1,11 @@
+{
+  "name": "bilibili-minimal-userscript",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node --check src/bilibili-minimal.user.js",
+    "test:fixture": "npx --yes --package playwright node tests/smoke-fixture.mjs",
+    "test:real": "npx --yes --package playwright node tests/smoke-real.mjs"
+  }
+}
