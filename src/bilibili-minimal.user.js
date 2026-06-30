@@ -17,6 +17,7 @@
 
   const HIDDEN = 'data-bili-minimal-hidden';
   const HOT_RE = /(?:bilibili|哔哩哔哩)?\s*热搜|热门搜索|大家都在搜|搜索发现/i;
+  const UPDATE_RE = /(?:刚刚|分钟前|小时前|天前|昨天|前天).{0,12}更新|更新.{0,12}(?:刚刚|分钟前|小时前|天前|昨天|前天)|已更\d+|更新至/;
   const TOP_NAV_RE = /^(首页|新剧|番剧|直播|游戏中心|会员购|漫画|赛事|下载客户端|MSI)$/;
 
   boot();
@@ -47,7 +48,7 @@
       .hot-search,
       .bili-search-hot,
       .bili-search-trending,
-      .search-panel:has(.trending) {
+      .trendings-single {
         display: none !important;
       }
 
@@ -61,7 +62,10 @@
       html[data-bili-minimal-page="home"] .recommended-swipe,
       html[data-bili-minimal-page="home"] .feed-card,
       html[data-bili-minimal-page="home"] .bili-video-card,
-      html[data-bili-minimal-page="home"] .recommended-container {
+      html[data-bili-minimal-page="home"] .recommended-container,
+      html[data-bili-minimal-page="home"] .palette-button-wrap,
+      html[data-bili-minimal-page="home"] .feed-roll-btn,
+      html[data-bili-minimal-page="home"] .storage-box {
         display: none !important;
       }
 
@@ -83,7 +87,15 @@
       html[data-bili-minimal-page="search"] .cm-module,
       html[data-bili-minimal-page="search"] .search-ad,
       html[data-bili-minimal-page="search"] .game-card,
-      html[data-bili-minimal-page="search"] .recommend-list {
+      html[data-bili-minimal-page="search"] .recommend-list,
+      html[data-bili-minimal-page="search"] .bili-footer,
+      html[data-bili-minimal-page="search"] .login-tip,
+      html[data-bili-minimal-page="search"] .lt-row,
+      html[data-bili-minimal-page="search"] .palette-button-wrap,
+      html[data-bili-minimal-page="search"] .storage-box,
+      html[data-bili-minimal-page="search"] .fixed-sidenav-storage,
+      html[data-bili-minimal-page="search"] .side-bar,
+      html[data-bili-minimal-page="search"] .elevator {
         display: none !important;
       }
     `;
@@ -121,6 +133,7 @@
     markPageType();
     setAutoPlayOff();
     cleanTopBar();
+    cleanSearchInput();
     cleanHotSearch();
 
     if (isHomePage()) cleanHomePage();
@@ -171,6 +184,7 @@
   function cleanHotSearch() {
     hideAll([
       '.trending',
+      '.trendings-single',
       '.search-trending',
       '.search-hot',
       '.hot-search',
@@ -178,18 +192,49 @@
       '.bili-search-trending',
     ]);
 
-    document.querySelectorAll('.search-panel, .nav-search-panel').forEach((panel) => {
-      const text = normalize(panel.innerText || panel.textContent);
-      if (HOT_RE.test(text)) hide(panel);
+    document.querySelectorAll('.search-panel > *, .nav-search-panel > *').forEach((section) => {
+      if (isSearchHistory(section)) return;
+
+      const text = normalize(section.innerText || section.textContent);
+      if (HOT_RE.test(text)) {
+        hide(section);
+        return;
+      }
+
+      if (!UPDATE_RE.test(text)) return;
+
+      const updateItems = Array.from(section.querySelectorAll('.suggest-item, .search-suggest-item, .suggestions-item'))
+        .filter((item) => UPDATE_RE.test(normalize(item.innerText || item.textContent)));
+
+      if (updateItems.length > 0) {
+        updateItems.forEach(hide);
+      } else {
+        hide(section);
+      }
     });
 
     document.querySelectorAll('.center-search-container *, .nav-search *, .bili-header *').forEach((node) => {
-      const text = normalize(node.innerText || node.textContent);
-      if (!text || !HOT_RE.test(text)) return;
+      if (isSearchHistory(node)) return;
 
-      const target = node.closest('.trending, .search-panel, .nav-search-panel') ||
-        node.querySelector('.trending, .search-panel, .nav-search-panel');
-      if (target) hide(target);
+      const text = normalize(node.innerText || node.textContent);
+      if (!text || (!HOT_RE.test(text) && !UPDATE_RE.test(text))) return;
+
+      const target = node.closest('.trending, .search-trending, .search-hot, .hot-search, .bili-search-hot, .bili-search-trending') ||
+        node.closest('.suggest-item, .search-suggest-item, .suggestions-item') ||
+        node.closest('.search-panel, .nav-search-panel') ||
+        node.querySelector('.trending, .search-trending, .search-hot, .hot-search, .bili-search-hot, .bili-search-trending');
+
+      if (target && !target.matches('.search-panel, .nav-search-panel') && !isSearchHistory(target)) {
+        hide(target);
+      }
+    });
+  }
+
+  function cleanSearchInput() {
+    document.querySelectorAll('.nav-search-input').forEach((input) => {
+      if (input.placeholder && input.placeholder !== '搜索') {
+        input.placeholder = '搜索';
+      }
     });
   }
 
@@ -206,6 +251,9 @@
       '.feed-card',
       '.bili-video-card',
       '.recommended-container',
+      '.palette-button-wrap',
+      '.feed-roll-btn',
+      '.storage-box',
     ]);
   }
 
@@ -247,6 +295,14 @@
       '.search-ad',
       '.game-card',
       '.recommend-list',
+      '.bili-footer',
+      '.login-tip',
+      '.lt-row',
+      '.palette-button-wrap',
+      '.storage-box',
+      '.fixed-sidenav-storage',
+      '.side-bar',
+      '.elevator',
     ]);
 
     document.querySelectorAll('.search-page-wrapper *').forEach((node) => {
@@ -255,6 +311,21 @@
 
       const target = node.closest('.brand-ad-list, .activity-game-list, .ad-floor-exp, .cm-module, .search-ad') || node;
       hide(target);
+    });
+
+    hideSearchPageBelowPagination();
+  }
+
+  function hideSearchPageBelowPagination() {
+    const pagination = document.querySelector('.vui_pagenation, .vui_pagination, .pagination, .page-box, .page-navigator');
+    if (!pagination) return;
+
+    const bottom = pagination.getBoundingClientRect().bottom;
+    Array.from(document.body.children).forEach((child) => {
+      if (child.contains(pagination)) return;
+
+      const rect = child.getBoundingClientRect();
+      if (rect.top >= bottom) hide(child);
     });
   }
 
@@ -290,6 +361,12 @@
 
   function normalize(text) {
     return String(text || '').replace(/\s+/g, '').trim();
+  }
+
+  function isSearchHistory(el) {
+    return Boolean(el?.closest?.(
+      '.history, .histories, .history-item, .history-wrap, .histories-wrap, .search-history, .bili-search-history'
+    ));
   }
 
   function isLogoLike(el) {

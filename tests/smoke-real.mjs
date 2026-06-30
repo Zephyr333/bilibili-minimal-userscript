@@ -80,12 +80,14 @@ async function checkRealHome() {
   await expectVisible(page, '.right-entry');
   assert(await hasVisibleLogo(page), 'real home should keep logo visible');
   await expectHidden(page, '.feed-card, .recommended-swipe, main');
+  await expectHidden(page, '.palette-button-wrap, .feed-roll-btn, .storage-box');
 
   const input = page.locator('.nav-search-input').first();
   if (await input.count()) {
     await input.click({ timeout: 5000 }).catch(() => {});
     await page.waitForTimeout(800);
     await expectHidden(page, '.trending');
+    await expectHidden(page, '.trendings-single');
   }
 
   await page.close();
@@ -119,7 +121,10 @@ async function checkRealSearch() {
   assert(new URL(page.url()).pathname === '/all', 'real search should not redirect /all to /video');
   await expectVisible(page, '.search-tabs, .vui_tabs');
   await expectVisible(page, '.video-list, .bili-video-card');
+  await expectVisible(page, '.vui_pagenation, .vui_pagination, .pagination');
   await expectHidden(page, '.brand-ad-list, .activity-game-list.search-all-list');
+  await expectHidden(page, '.bili-footer');
+  await expectHidden(page, '.login-tip, .lt-row');
 
   await page.close();
 }

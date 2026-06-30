@@ -37,8 +37,15 @@ async function checkHome() {
           <li><a>下载客户端</a></li>
         </ul>
         <div class="center-search-container">
-          <input class="nav-search-input" placeholder="搜索">
-          <div class="search-panel"><div class="trending">bilibili热搜</div></div>
+          <input class="nav-search-input" placeholder="某某 3小时前更新">
+          <div class="search-panel">
+            <div class="histories-wrap"><div class="history-item">编程</div></div>
+            <div class="trending">bilibili热搜</div>
+            <div class="suggestions">
+              <div class="suggest-item">某某 3小时前更新</div>
+              <div class="suggest-item normal-suggest">编程入门</div>
+            </div>
+          </div>
         </div>
         <ul class="right-entry"><li>消息</li><li>动态</li><li>收藏</li><li>历史</li><li>投稿</li></ul>
       </div>
@@ -49,6 +56,7 @@ async function checkHome() {
       <div class="feed-card">推荐视频</div>
       <div class="bili-video-card">视频卡片</div>
     </main>
+    <div class="palette-button-wrap">刷新内容 三点 顶部</div>
   `);
 
   await page.waitForFunction(() => document.documentElement.dataset.biliMinimalPage === 'home');
@@ -57,8 +65,14 @@ async function checkHome() {
   await expectVisible(page, '.center-search-container');
   await expectVisible(page, '.right-entry');
   await expectHidden(page, '.left-entry li');
+  assert(await page.locator('.nav-search-input').first().evaluate((input) => input.placeholder) === '搜索', 'home should replace recommended placeholder');
+  await expectVisible(page, '.search-panel');
+  await expectVisible(page, '.history-item');
+  await expectVisible(page, '.normal-suggest');
   await expectHidden(page, '.trending');
+  await expectHidden(page, '.suggest-item');
   await expectHidden(page, 'main');
+  await expectHidden(page, '.palette-button-wrap');
 
   await page.close();
 }
@@ -121,7 +135,11 @@ async function checkSearch() {
       <div class="activity-game-list search-all-list">活动推广</div>
       <div class="video i_wrapper search-all-list">
         <div class="video-list row"><div class="bili-video-card">搜索到的视频</div></div>
+        <div class="vui_pagenation">上一页 1 2 3 下一页</div>
       </div>
+      <div class="bili-footer">页脚</div>
+      <div class="login-tip">登录提示</div>
+      <div class="lt-row">底部登录条</div>
     </div>
   `);
 
@@ -131,9 +149,13 @@ async function checkSearch() {
   await expectVisible(page, '.search-tabs');
   await expectVisible(page, '.search-condition-row');
   await expectVisible(page, '.bili-video-card');
+  await expectVisible(page, '.vui_pagenation');
   await expectVisible(page, '.search-panel-popover');
   await expectHidden(page, '.brand-ad-list');
   await expectHidden(page, '.activity-game-list');
+  await expectHidden(page, '.bili-footer');
+  await expectHidden(page, '.login-tip');
+  await expectHidden(page, '.lt-row');
 
   await page.close();
 }
