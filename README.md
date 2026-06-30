@@ -10,6 +10,7 @@ Tampermonkey userscript for keeping Bilibili focused on search and current conte
 - Hide hot search modules across Bilibili pages.
 - Keep search history visible while removing hot search and "recently updated" recommendation text from the search box.
 - Hide live entry points, including live search result cards, live links, and visible "live now" badges.
+- Redirect `live.bilibili.com/*` back to the Bilibili homepage.
 - Clear the Bilibili homepage body so it does not show feeds, channels, swipes, or recommendation cards.
 - Hide homepage floating buttons such as refresh, more actions, and back-to-top.
 - On video pages, keep the current video, uploader panel, comments, danmaku, and playlists/sections; hide recommendation lists, ads, ending panels, and autoplay controls.

@@ -16,12 +16,21 @@ const context = await browser.newContext({
 await context.addInitScript({ content: userscript });
 
 try {
+  await checkRealLiveRedirect();
   await checkRealHome();
   await checkRealVideo();
   await checkRealSearch();
   console.log('real bilibili smoke checks passed');
 } finally {
   await browser.close();
+}
+
+async function checkRealLiveRedirect() {
+  const page = await context.newPage();
+  await page.goto('https://live.bilibili.com/123', { waitUntil: 'domcontentloaded', timeout: 45000 });
+  await page.waitForURL('https://www.bilibili.com/', { timeout: 15000 });
+  assert(page.url() === 'https://www.bilibili.com/', 'real live page should redirect to homepage');
+  await page.close();
 }
 
 async function checkRealHome() {

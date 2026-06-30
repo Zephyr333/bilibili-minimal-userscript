@@ -12,12 +12,39 @@ const context = await browser.newContext();
 await context.addInitScript({ content: userscript });
 
 try {
+  await checkLiveRedirect();
   await checkHome();
   await checkVideo();
   await checkSearch();
   console.log('fixture smoke checks passed');
 } finally {
   await browser.close();
+}
+
+async function checkLiveRedirect() {
+  const page = await context.newPage();
+
+  await page.route('https://live.bilibili.com/123', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/html; charset=utf-8',
+      body: '<!doctype html><html><body>live room</body></html>',
+    });
+  });
+
+  await page.route('https://www.bilibili.com/', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/html; charset=utf-8',
+      body: '<!doctype html><html><body>home</body></html>',
+    });
+  });
+
+  await page.goto('https://live.bilibili.com/123');
+  await page.waitForURL('https://www.bilibili.com/', { timeout: 10000 });
+  assert(page.url() === 'https://www.bilibili.com/', 'live pages should redirect to homepage');
+
+  await page.close();
 }
 
 async function checkHome() {

@@ -22,7 +22,16 @@
   const TOP_NAV_RE = /^(首页|新剧|番剧|直播|游戏中心|会员购|漫画|赛事|下载客户端|MSI)$/;
   const SEARCH_TAB_HIDE_RE = /^(番剧|影视|直播)(?:\d+|\+|99\+)?$/;
 
+  if (redirectLivePage()) return;
+
   boot();
+
+  function redirectLivePage() {
+    if (location.hostname !== 'live.bilibili.com') return false;
+
+    location.replace('https://www.bilibili.com/');
+    return true;
+  }
 
   function boot() {
     if (!document.documentElement) {
