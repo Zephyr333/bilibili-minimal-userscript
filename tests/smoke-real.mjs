@@ -87,7 +87,9 @@ async function checkRealHome() {
 
   await expectVisible(page, '.center-search-container');
   await expectVisible(page, '.right-entry');
-  assert(await hasVisibleLogo(page), 'real home should keep logo visible');
+  assert(await hasVisibleHomeEntry(page), 'real home should keep a visible home entry');
+  assert(!(await hasVisibleBiliLogo(page)), 'real home should hide the Bilibili logo');
+  assert(!(await hasVisibleDisallowedRightEntry(page)), 'real home should hide extra right-side controls');
   await expectHidden(page, '.feed-card, .recommended-swipe, main');
   await expectHidden(page, '.palette-button-wrap, .feed-roll-btn, .storage-box');
 
@@ -109,7 +111,9 @@ async function checkRealVideo() {
   await waitForLayout(page, '.center-search-container');
 
   await expectVisible(page, '.center-search-container');
-  assert(await hasVisibleLogo(page), 'real video should keep logo visible');
+  assert(await hasVisibleHomeEntry(page), 'real video should keep a visible home entry');
+  assert(!(await hasVisibleBiliLogo(page)), 'real video should hide the Bilibili logo');
+  assert(!(await hasVisibleDisallowedRightEntry(page)), 'real video should hide extra right-side controls');
   await expectHidden(page, '.recommend-list-v1, .rec-list');
   await expectHidden(page, '.bpx-player-ending-panel');
   assert(await page.evaluate(() => localStorage.getItem('recommend_auto_play')) === 'close', 'real video should disable autoplay storage flag');
@@ -128,7 +132,9 @@ async function checkRealSearch() {
   await waitForLayout(page, '.center-search-container');
 
   assert(new URL(page.url()).pathname === '/all', 'real search should not redirect /all to /video');
-  assert(await hasVisibleLogo(page), 'real search should keep logo visible');
+  assert(await hasVisibleHomeEntry(page), 'real search should keep a visible home entry');
+  assert(!(await hasVisibleBiliLogo(page)), 'real search should hide the Bilibili logo');
+  assert(!(await hasVisibleDisallowedRightEntry(page)), 'real search should hide extra right-side controls');
   await expectVisible(page, '.search-tabs, .vui_tabs');
   await expectVisible(page, '.video-list, .bili-video-card');
   await expectVisible(page, '.vui_pagenation, .vui_pagination, .pagination');
@@ -141,7 +147,7 @@ async function checkRealSearch() {
   await page.close();
 }
 
-async function hasVisibleLogo(page) {
+async function hasVisibleHomeEntry(page) {
   return page.evaluate(() => {
     const isVisibleElement = (el) => {
       const style = getComputedStyle(el);
@@ -149,16 +155,44 @@ async function hasVisibleLogo(page) {
       return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
     };
 
-    return Array.from(document.querySelectorAll('a, img, svg')).some((el) => {
-      const text = [
-        el.textContent,
-        el.alt,
-        el.title,
-        el.getAttribute('aria-label'),
-        el.getAttribute('href'),
-      ].filter(Boolean).join(' ');
+    return Array.from(document.querySelectorAll('[data-bili-minimal-home-entry="true"]')).some((el) => {
+      const text = String(el.innerText || el.textContent || '').replace(/\s+/g, '').trim();
+      return /首页/.test(text) && isVisibleElement(el);
+    });
+  });
+}
 
-      return /bilibili|B站|b站/i.test(text) && isVisibleElement(el);
+async function hasVisibleBiliLogo(page) {
+  return page.evaluate(() => {
+    const isVisibleElement = (el) => {
+      const style = getComputedStyle(el);
+      const rect = el.getBoundingClientRect();
+      return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
+    };
+
+    const headerScopes = Array.from(document.querySelectorAll('.bili-header, .bili-header__bar, .mini-header, header'));
+    return headerScopes.some((scope) => {
+      const candidates = Array.from(scope.querySelectorAll(
+        '.bili-logo, .mini-header__logo, .header-logo, .left-entry svg, .left-entry img, ' +
+        'a[class*="logo"], a[class*="Logo"], img[class*="logo"], img[class*="Logo"], svg[class*="logo"], svg[class*="Logo"]'
+      ));
+
+      return candidates.some(isVisibleElement);
+    });
+  });
+}
+
+async function hasVisibleDisallowedRightEntry(page) {
+  return page.evaluate(() => {
+    const isVisibleElement = (el) => {
+      const style = getComputedStyle(el);
+      const rect = el.getBoundingClientRect();
+      return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
+    };
+
+    return Array.from(document.querySelectorAll('.right-entry > *')).some((el) => {
+      const text = String(el.innerText || el.textContent || '').replace(/\s+/g, '').trim();
+      return /大会员|动态|创作中心|投稿/.test(text) && isVisibleElement(el);
     });
   });
 }

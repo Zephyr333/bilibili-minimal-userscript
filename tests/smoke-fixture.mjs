@@ -74,7 +74,16 @@ async function checkHome() {
             </div>
           </div>
         </div>
-        <ul class="right-entry"><li>消息</li><li>动态</li><li>收藏</li><li>历史</li><li>投稿</li></ul>
+        <ul class="right-entry">
+          <li class="avatar-entry">登录</li>
+          <li class="vip-entry">大会员</li>
+          <li class="message-entry">消息</li>
+          <li class="dynamic-entry">动态</li>
+          <li class="favorite-entry">收藏</li>
+          <li class="history-entry">历史</li>
+          <li class="creator-entry">创作中心</li>
+          <li class="upload-entry">投稿</li>
+        </ul>
       </div>
       <div class="channel-icons">动态 热门</div>
     </div>
@@ -88,12 +97,21 @@ async function checkHome() {
 
   await page.waitForFunction(() => document.documentElement.dataset.biliMinimalPage === 'home');
 
-  await expectVisible(page, '.bili-logo');
+  await expectHidden(page, '.bili-logo');
   await expectVisible(page, '.center-search-container');
   await expectVisible(page, '.right-entry');
-  await expectVisible(page, '.left-entry li[data-bili-minimal-logo-entry="true"]');
-  await expectHidden(page, '.mini-header__title');
-  await expectHidden(page, '.left-entry li:not([data-bili-minimal-logo-entry="true"])');
+  await expectVisible(page, '.left-entry li[data-bili-minimal-home-entry="true"]');
+  await expectVisible(page, '.mini-header__title');
+  await expectHidden(page, '.left-entry svg');
+  await expectHidden(page, '.left-entry li:not([data-bili-minimal-home-entry="true"])');
+  await expectVisible(page, '.avatar-entry');
+  await expectVisible(page, '.message-entry');
+  await expectVisible(page, '.favorite-entry');
+  await expectVisible(page, '.history-entry');
+  await expectHidden(page, '.vip-entry');
+  await expectHidden(page, '.dynamic-entry');
+  await expectHidden(page, '.creator-entry');
+  await expectHidden(page, '.upload-entry');
   assert(await page.locator('.nav-search-input').first().evaluate((input) => input.placeholder) === '搜索', 'home should replace recommended placeholder');
   await expectVisible(page, '.search-panel');
   await expectVisible(page, '.history-item');
@@ -113,7 +131,7 @@ async function checkVideo() {
       <a class="bili-logo" href="//www.bilibili.com"><img alt="B站 b站"></a>
       <ul class="left-entry"><li><a class="left-entry__title" href="https://www.bilibili.com/"><svg></svg><div class="mini-header__title"><span>首页</span></div></a></li><li><a>直播</a></li></ul>
       <div class="center-search-container"><input class="nav-search-input"></div>
-      <ul class="right-entry"><li>消息</li><li>投稿</li></ul>
+      <ul class="right-entry"><li class="avatar-entry">登录</li><li class="message-entry">消息</li><li class="favorite-entry">收藏</li><li class="history-entry">历史</li><li class="upload-entry">投稿</li></ul>
     </div>
     <div class="video-container">播放器</div>
     <div class="right-container">
@@ -133,8 +151,15 @@ async function checkVideo() {
 
   await page.waitForFunction(() => document.documentElement.dataset.biliMinimalPage === 'video');
 
-  await expectVisible(page, '.left-entry li[data-bili-minimal-logo-entry="true"]');
-  await expectHidden(page, '.mini-header__title');
+  await expectHidden(page, '.bili-logo');
+  await expectVisible(page, '.left-entry li[data-bili-minimal-home-entry="true"]');
+  await expectVisible(page, '.mini-header__title');
+  await expectHidden(page, '.left-entry svg');
+  await expectVisible(page, '.avatar-entry');
+  await expectVisible(page, '.message-entry');
+  await expectVisible(page, '.favorite-entry');
+  await expectVisible(page, '.history-entry');
+  await expectHidden(page, '.upload-entry');
   await expectVisible(page, '.video-pod');
   await expectVisible(page, '.up-panel-container');
   await expectVisible(page, '.danmaku-box');
@@ -157,7 +182,7 @@ async function checkSearch() {
         <input class="nav-search-input">
         <div class="search-panel-popover">零基础编程入门教程</div>
       </div>
-      <ul class="right-entry"><li>历史</li><li>投稿</li></ul>
+      <ul class="right-entry"><li class="avatar-entry">登录</li><li class="private-entry">私信</li><li class="favorite-entry">收藏</li><li class="history-entry">历史</li><li class="dynamic-entry">动态</li><li class="upload-entry">投稿</li></ul>
     </div>
     <div class="search-page-wrapper">
       <div class="search-tabs">
@@ -189,8 +214,16 @@ async function checkSearch() {
   await page.waitForFunction(() => document.documentElement.dataset.biliMinimalPage === 'search');
 
   assert(new URL(page.url()).pathname === '/all', 'search should not redirect /all to /video');
-  await expectVisible(page, '.left-entry li[data-bili-minimal-logo-entry="true"]');
-  await expectHidden(page, '.mini-header__title');
+  await expectHidden(page, '.bili-logo');
+  await expectVisible(page, '.left-entry li[data-bili-minimal-home-entry="true"]');
+  await expectVisible(page, '.mini-header__title');
+  await expectHidden(page, '.left-entry svg');
+  await expectVisible(page, '.avatar-entry');
+  await expectVisible(page, '.private-entry');
+  await expectVisible(page, '.favorite-entry');
+  await expectVisible(page, '.history-entry');
+  await expectHidden(page, '.dynamic-entry');
+  await expectHidden(page, '.upload-entry');
   await expectVisible(page, '.search-tabs');
   await expectVisible(page, '.search-condition-row');
   await expectVisible(page, '.normal-result .bili-video-card');

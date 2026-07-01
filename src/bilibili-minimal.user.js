@@ -2,7 +2,7 @@
 // @name         B站极简：保留搜索与当前内容
 // @namespace    http://tampermonkey.net/
 // @version      1.0.0
-// @description  保留 logo、搜索框、右上角控件；隐藏热搜、首页推荐、视频页相关推荐和自动连播。
+// @description  保留首页入口、搜索框、头像/私信/收藏/历史；隐藏热搜、首页推荐、直播入口和相关推荐。
 // @author       You
 // @match        *://bilibili.com/*
 // @match        *://*.bilibili.com/*
@@ -16,11 +16,12 @@
   'use strict';
 
   const HIDDEN = 'data-bili-minimal-hidden';
-  const LOGO_ENTRY = 'data-bili-minimal-logo-entry';
+  const HOME_ENTRY = 'data-bili-minimal-home-entry';
   const HOT_RE = /(?:bilibili|哔哩哔哩)?\s*热搜|热门搜索|大家都在搜|搜索发现/i;
   const UPDATE_RE = /(?:刚刚|分钟前|小时前|天前|昨天|前天).{0,12}更新|更新.{0,12}(?:刚刚|分钟前|小时前|天前|昨天|前天)|已更\d+|更新至/;
   const TOP_NAV_RE = /^(首页|新剧|番剧|直播|游戏中心|会员购|漫画|赛事|下载客户端|MSI)$/;
   const SEARCH_TAB_HIDE_RE = /^(番剧|影视|直播)(?:\d+|\+|99\+)?$/;
+  const RIGHT_ENTRY_KEEP_RE = /^(登录|头像|消息|私信|收藏|历史)$/;
 
   if (redirectLivePage()) return;
 
@@ -53,14 +54,20 @@
         display: none !important;
       }
 
-      [${LOGO_ENTRY}="true"] {
+      [${HOME_ENTRY}="true"] {
         display: flex !important;
         visibility: visible !important;
       }
 
-      [${LOGO_ENTRY}="true"] .mini-header__title,
-      [${LOGO_ENTRY}="true"] .left-entry__title span {
+      [${HOME_ENTRY}="true"] svg,
+      [${HOME_ENTRY}="true"] img {
         display: none !important;
+      }
+
+      [${HOME_ENTRY}="true"] .mini-header__title,
+      [${HOME_ENTRY}="true"] .left-entry__title span {
+        display: flex !important;
+        visibility: visible !important;
       }
 
       .trending,
@@ -154,6 +161,7 @@
     markPageType();
     setAutoPlayOff();
     cleanTopBar();
+    cleanRightBar();
     cleanLiveEntrypoints();
     cleanSearchInput();
     cleanHotSearch();
@@ -188,8 +196,8 @@
   function cleanTopBar() {
     document.querySelectorAll('.left-entry').forEach((entry) => {
       Array.from(entry.children).forEach((child) => {
-        if (isHeaderLogoEntry(entry, child)) {
-          keepHeaderLogoEntry(child);
+        if (isHeaderHomeEntry(entry, child)) {
+          keepHeaderHomeEntry(child);
           return;
         }
 
@@ -197,15 +205,31 @@
       });
     });
 
-    document.querySelectorAll('.bili-header__bar a, .mini-header a, header a').forEach((link) => {
-      if (link.closest(`[${LOGO_ENTRY}="true"]`)) return;
+    document.querySelectorAll('.bili-header a, .bili-header__bar a, .mini-header a, header a').forEach((link) => {
+      if (link.closest(`[${HOME_ENTRY}="true"]`)) return;
       if (link.closest('.right-entry, .center-search-container, .nav-search')) return;
-      if (isLogoLike(link)) return;
+      if (isLogoLike(link)) {
+        hide(link.closest('li, .bili-logo, a') || link);
+        return;
+      }
 
       const label = normalize(link.innerText || link.title || link.getAttribute('aria-label'));
       if (TOP_NAV_RE.test(label)) {
         hide(link.closest('li, .left-entry__title, .download-entry') || link);
       }
+    });
+  }
+
+  function cleanRightBar() {
+    document.querySelectorAll('.right-entry').forEach((entry) => {
+      Array.from(entry.children).forEach((child, index) => {
+        if (isKeptRightEntry(child, index)) {
+          show(child);
+          return;
+        }
+
+        hide(child);
+      });
     });
   }
 
@@ -425,6 +449,11 @@
     el.setAttribute(HIDDEN, 'true');
   }
 
+  function show(el) {
+    if (!el || el.nodeType !== 1) return;
+    el.removeAttribute(HIDDEN);
+  }
+
   function normalize(text) {
     return String(text || '').replace(/\s+/g, '').trim();
   }
@@ -435,7 +464,7 @@
     ));
   }
 
-  function isHeaderLogoEntry(entry, child) {
+  function isHeaderHomeEntry(entry, child) {
     if (child !== entry.firstElementChild) return false;
 
     const link = child.querySelector('a[href]');
@@ -446,23 +475,39 @@
       Boolean(link.querySelector('svg, img') || /首页/.test(normalize(link.innerText || link.textContent)));
   }
 
-  function keepHeaderLogoEntry(entry) {
-    entry.removeAttribute(HIDDEN);
-    entry.setAttribute(LOGO_ENTRY, 'true');
+  function keepHeaderHomeEntry(entry) {
+    show(entry);
+    entry.setAttribute(HOME_ENTRY, 'true');
 
     const link = entry.querySelector('a[href]');
     if (link) {
-      link.removeAttribute(HIDDEN);
-      link.setAttribute(LOGO_ENTRY, 'true');
+      show(link);
+      link.setAttribute(HOME_ENTRY, 'true');
     }
 
-    entry.querySelectorAll('*').forEach((node) => {
-      if (node.matches('svg, svg *, img')) return;
-      if (node.querySelector('svg, img')) return;
+    entry.querySelectorAll('svg, img').forEach(hide);
+    entry.querySelectorAll('.mini-header__title, .left-entry__title span').forEach(show);
+  }
 
-      const text = normalize(node.innerText || node.textContent);
-      if (text === '首页') hide(node);
-    });
+  function isKeptRightEntry(entry, index) {
+    const text = normalize(entry.innerText || entry.textContent);
+    const descriptor = [
+      text,
+      entry.className,
+      entry.getAttribute('data-idx'),
+      Array.from(entry.querySelectorAll('[class], [data-idx], a[href], img')).map((node) => [
+        node.className,
+        node.getAttribute('data-idx'),
+        node.getAttribute('href'),
+        node.alt,
+      ].filter(Boolean).join(' ')).join(' '),
+    ].filter(Boolean).join(' ');
+
+    if (index === 0 && /登录|头像|avatar|face|bili-avatar|header-avatar|go-login/i.test(descriptor)) return true;
+    if (RIGHT_ENTRY_KEEP_RE.test(text)) return true;
+    if (/^(消息|私信|收藏|历史)/.test(text)) return true;
+    if (/(message|whisper|fav|favorite|history)/i.test(descriptor)) return true;
+    return false;
   }
 
   function getLiveTarget(node) {

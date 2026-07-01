@@ -4,9 +4,9 @@ Tampermonkey userscript for keeping Bilibili focused on search and current conte
 
 ## Rules
 
-- Keep the Bilibili logo, search box, and right-side user controls.
-- Hide left navigation entries such as home, bangumi, live, game center, member shop, manga, match, and app download.
-- Keep the logo visible on non-home pages while hiding the home text label.
+- Keep one top-left home entry, the search box, avatar, messages/private messages, favorites, and history.
+- Hide the Bilibili logo and left navigation entries such as bangumi, live, game center, member shop, manga, match, and app download.
+- Hide extra right-side controls such as VIP, dynamic feed, creator center, and upload.
 - Hide hot search modules across Bilibili pages.
 - Keep search history visible while removing hot search and "recently updated" recommendation text from the search box.
 - Hide live entry points, including live search result cards, live links, and visible "live now" badges.
