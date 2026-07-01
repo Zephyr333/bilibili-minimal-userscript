@@ -147,6 +147,16 @@ async function checkVideo() {
     </div>
     <div class="bpx-player-ending-panel">播放结束推荐</div>
     <div class="bpx-player-ctrl-setting-autoplay">自动连播</div>
+    <div class="video-desc">本期视频涉及的事件以及信息来源如下</div>
+    <div class="ordinary-tag">欧洲热浪</div>
+    <a class="activity-banner" href="https://www.bilibili.com/blackboard/activity-debate.html">
+      <span>投稿赢流量、奖金和老友赛门票！</span>
+      <img alt="B站辩论季 上B站聊观点">
+    </a>
+    <a class="mobile-topic-promo" href="https://www.bilibili.com/blackboard/activity/debate">
+      B站辩论季 活动推广
+    </a>
+    <div class="comment-container">评论区</div>
   `);
 
   await page.waitForFunction(() => document.documentElement.dataset.biliMinimalPage === 'video');
@@ -167,6 +177,11 @@ async function checkVideo() {
   await expectHidden(page, '.video-card-ad-small');
   await expectHidden(page, '.bpx-player-ending-panel');
   await expectHidden(page, '.bpx-player-ctrl-setting-autoplay');
+  await expectVisible(page, '.video-desc');
+  await expectVisible(page, '.ordinary-tag');
+  await expectVisible(page, '.comment-container');
+  await expectHidden(page, '.activity-banner');
+  await expectHidden(page, '.mobile-topic-promo');
   assert(await page.evaluate(() => localStorage.getItem('recommend_auto_play')) === 'close', 'video should disable autoplay storage flag');
 
   await page.close();

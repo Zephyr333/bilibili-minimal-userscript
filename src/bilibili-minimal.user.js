@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         B站极简：保留搜索与当前内容
 // @namespace    http://tampermonkey.net/
-// @version      1.0.0
-// @description  保留首页入口、搜索框、头像/私信/收藏/历史；隐藏热搜、首页推荐、直播入口和相关推荐。
+// @version      1.0.1
+// @description  保留首页入口、搜索框、头像/私信/收藏/历史；隐藏热搜、首页推荐、直播入口、相关推荐和活动推广。
 // @author       You
 // @match        *://bilibili.com/*
 // @match        *://*.bilibili.com/*
@@ -22,6 +22,7 @@
   const TOP_NAV_RE = /^(首页|新剧|番剧|直播|游戏中心|会员购|漫画|赛事|下载客户端|MSI)$/;
   const SEARCH_TAB_HIDE_RE = /^(番剧|影视|直播)(?:\d+|\+|99\+)?$/;
   const RIGHT_ENTRY_KEEP_RE = /^(登录|头像|消息|私信|收藏|历史)$/;
+  const VIDEO_PROMO_RE = /B站辩论季|投稿赢流量|老友赛|活动推广|广告|推广|征稿|创作激励|话题活动|上B站聊观点/i;
 
   if (redirectLivePage()) return;
 
@@ -105,6 +106,16 @@
       html[data-bili-minimal-page="video"] .video-card-ad-small,
       html[data-bili-minimal-page="video"] .ad-floor-exp,
       html[data-bili-minimal-page="video"] .video-page-special-card-small,
+      html[data-bili-minimal-page="video"] .video-page-game-card-small,
+      html[data-bili-minimal-page="video"] .ad-report,
+      html[data-bili-minimal-page="video"] .ad-card,
+      html[data-bili-minimal-page="video"] .ad-wrap,
+      html[data-bili-minimal-page="video"] .activity-m-v1,
+      html[data-bili-minimal-page="video"] .activity-card,
+      html[data-bili-minimal-page="video"] .activity-banner,
+      html[data-bili-minimal-page="video"] .video-activity,
+      html[data-bili-minimal-page="video"] .promo-card,
+      html[data-bili-minimal-page="video"] .operation-card,
       html[data-bili-minimal-page="video"] .bpx-player-ctrl-setting-autoplay {
         display: none !important;
       }
@@ -185,7 +196,7 @@
   }
 
   function isVideoPage() {
-    return location.hostname === 'www.bilibili.com' &&
+    return /^(?:www\.|m\.)?bilibili\.com$/.test(location.hostname) &&
       /^\/video\//.test(location.pathname);
   }
 
@@ -349,8 +360,20 @@
       '.video-card-ad-small',
       '.ad-floor-exp',
       '.video-page-special-card-small',
+      '.video-page-game-card-small',
+      '.ad-report',
+      '.ad-card',
+      '.ad-wrap',
+      '.activity-m-v1',
+      '.activity-card',
+      '.activity-banner',
+      '.video-activity',
+      '.promo-card',
+      '.operation-card',
       '.bpx-player-ctrl-setting-autoplay',
     ]);
+
+    cleanVideoPromotions();
 
     document.querySelectorAll('.right-container, .bpx-player-container').forEach((scope) => {
       scope.querySelectorAll('*').forEach((node) => {
@@ -365,6 +388,40 @@
 
         if (target && !target.closest('.video-pod')) hide(target);
       });
+    });
+  }
+
+  function cleanVideoPromotions() {
+    document.querySelectorAll([
+      '.ad-report',
+      '.ad-card',
+      '.ad-wrap',
+      '.ad-container',
+      '.activity-m-v1',
+      '.activity-card',
+      '.activity-banner',
+      '.video-activity',
+      '.promo-card',
+      '.operation-card',
+      '.operate-card',
+      '.banner-card',
+      'a[href*="blackboard/activity"]',
+      'a[href*="activity"]',
+      'a[href*="cm.bilibili.com"]',
+      '[class*="activity-card"]',
+      '[class*="activity-banner"]',
+      '[class*="ActivityCard"]',
+      '[class*="ActivityBanner"]',
+      '[class*="promo"]',
+      '[class*="Promo"]',
+      '[class*="operation"]',
+      '[class*="Operation"]',
+    ].join(',')).forEach((node) => {
+      if (isProtectedVideoContent(node)) return;
+      if (!VIDEO_PROMO_RE.test(getElementDescriptor(node))) return;
+
+      const target = getVideoPromoTarget(node);
+      if (target && !isProtectedVideoContent(target)) hide(target);
     });
   }
 
@@ -518,6 +575,54 @@
       '.bili-dyn-list__item, .bili-dyn-card, .dyn-card, .user-list-item, .bili-user-card, ' +
       'li'
     ) || node.closest('a[href*="live.bilibili.com"], [class*="live"], [class*="living"]') || node;
+  }
+
+  function getVideoPromoTarget(node) {
+    if (!node || node.nodeType !== 1) return null;
+
+    return node.closest(
+      '.ad-report, .ad-card, .ad-wrap, .ad-container, .activity-m-v1, .activity-card, .activity-banner, .video-activity, ' +
+      '.promo-card, .operation-card, .operate-card, .banner-card, [class*="activity-card"], [class*="activity-banner"], ' +
+      '[class*="ActivityCard"], [class*="ActivityBanner"], [class*="promo"], [class*="Promo"], [class*="operation"], [class*="Operation"]'
+    ) || node.closest('a, section, aside, li, div') || node;
+  }
+
+  function isProtectedVideoContent(node) {
+    return Boolean(node?.closest?.(
+      '.bili-header, .bili-header__bar, .mini-header, header, .center-search-container, .right-entry, .nav-search, ' +
+      '.bpx-player-container, .video-container, .player-wrap, .up-panel-container, .video-pod, ' +
+      '.video-desc, .basic-desc-info, .desc-info, .ordinary-tag, .tag-panel, .video-tag-container, ' +
+      '.comment, .comment-container, .bili-comment, .bb-comment, .comment-list, .reply, #comment'
+    ));
+  }
+
+  function getElementDescriptor(node) {
+    if (!node || node.nodeType !== 1) return '';
+
+    const own = [
+      node.innerText,
+      node.textContent,
+      node.className,
+      node.id,
+      node.title,
+      node.getAttribute('aria-label'),
+      node.getAttribute('href'),
+      node.getAttribute('src'),
+      node.getAttribute('alt'),
+    ];
+
+    const childAttrs = Array.from(node.querySelectorAll('a[href], img, [title], [aria-label]')).map((child) => [
+      child.innerText,
+      child.textContent,
+      child.className,
+      child.title,
+      child.getAttribute('aria-label'),
+      child.getAttribute('href'),
+      child.getAttribute('src'),
+      child.getAttribute('alt'),
+    ].filter(Boolean).join(' '));
+
+    return normalize(own.concat(childAttrs).filter(Boolean).join(' '));
   }
 
   function isLogoLike(el) {

@@ -13,7 +13,7 @@ Tampermonkey userscript for keeping Bilibili focused on search and current conte
 - Redirect `live.bilibili.com/*` back to the Bilibili homepage.
 - Clear the Bilibili homepage body so it does not show feeds, channels, swipes, or recommendation cards.
 - Hide homepage floating buttons such as refresh, more actions, and back-to-top.
-- On video pages, keep the current video, uploader panel, comments, danmaku, and playlists/sections; hide recommendation lists, ads, ending panels, and autoplay controls.
+- On video pages, keep the current video, uploader panel, comments, danmaku, descriptions, tags, and playlists/sections; hide recommendation lists, ads, activity/promotion banners, ending panels, and autoplay controls.
 - On search pages, keep search type tabs, filters, result cards, and pagination; hide bangumi, movie, and live tabs, plus hot search, ads, activity promotions, footer, login prompts, and everything below pagination.
 - Do not redirect `search.bilibili.com/all?...` to `search.bilibili.com/video?...`.
 

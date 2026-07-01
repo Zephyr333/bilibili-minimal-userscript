@@ -117,6 +117,7 @@ async function checkRealVideo() {
   await expectHidden(page, '.recommend-list-v1, .rec-list');
   await expectHidden(page, '.bpx-player-ending-panel');
   assert(await page.evaluate(() => localStorage.getItem('recommend_auto_play')) === 'close', 'real video should disable autoplay storage flag');
+  assert(!(await hasVisibleVideoPromotion(page)), 'real video should hide activity promotion cards');
 
   if (await page.locator('.video-pod').count()) {
     await expectVisible(page, '.video-pod');
@@ -194,6 +195,68 @@ async function hasVisibleDisallowedRightEntry(page) {
       const text = String(el.innerText || el.textContent || '').replace(/\s+/g, '').trim();
       return /大会员|动态|创作中心|投稿/.test(text) && isVisibleElement(el);
     });
+  });
+}
+
+async function hasVisibleVideoPromotion(page) {
+  return page.evaluate(() => {
+    const promoRe = /B站辩论季|投稿赢流量|老友赛|活动推广|广告|推广|征稿|创作激励|话题活动|上B站聊观点/i;
+    const isVisibleElement = (el) => {
+      const style = getComputedStyle(el);
+      const rect = el.getBoundingClientRect();
+      return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
+    };
+    const isProtected = (el) => Boolean(el.closest(
+      '.bili-header, .bili-header__bar, .mini-header, header, .center-search-container, .right-entry, .nav-search, ' +
+      '.bpx-player-container, .video-container, .player-wrap, .up-panel-container, .video-pod, ' +
+      '.video-desc, .basic-desc-info, .desc-info, .ordinary-tag, .tag-panel, .video-tag-container, ' +
+      '.comment, .comment-container, .bili-comment, .bb-comment, .comment-list, .reply, #comment'
+    ));
+    const describe = (el) => [
+      el.innerText,
+      el.textContent,
+      el.className,
+      el.id,
+      el.title,
+      el.getAttribute('aria-label'),
+      el.getAttribute('href'),
+      ...Array.from(el.querySelectorAll('a[href], img, [title], [aria-label]')).flatMap((child) => [
+        child.innerText,
+        child.textContent,
+        child.className,
+        child.title,
+        child.getAttribute('aria-label'),
+        child.getAttribute('href'),
+        child.getAttribute('src'),
+        child.getAttribute('alt'),
+      ]),
+    ].filter(Boolean).join(' ').replace(/\s+/g, '').trim();
+
+    return Array.from(document.querySelectorAll([
+      '.ad-report',
+      '.ad-card',
+      '.ad-wrap',
+      '.ad-container',
+      '.activity-m-v1',
+      '.activity-card',
+      '.activity-banner',
+      '.video-activity',
+      '.promo-card',
+      '.operation-card',
+      '.operate-card',
+      '.banner-card',
+      'a[href*="blackboard/activity"]',
+      'a[href*="activity"]',
+      'a[href*="cm.bilibili.com"]',
+      '[class*="activity-card"]',
+      '[class*="activity-banner"]',
+      '[class*="ActivityCard"]',
+      '[class*="ActivityBanner"]',
+      '[class*="promo"]',
+      '[class*="Promo"]',
+      '[class*="operation"]',
+      '[class*="Operation"]',
+    ].join(','))).some((el) => isVisibleElement(el) && !isProtected(el) && promoRe.test(describe(el)));
   });
 }
 
