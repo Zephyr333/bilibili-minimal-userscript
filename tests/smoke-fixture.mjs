@@ -79,8 +79,27 @@ async function checkHome() {
           <li class="vip-entry">大会员</li>
           <li class="message-entry">消息</li>
           <li class="dynamic-entry">动态</li>
-          <li class="favorite-entry">收藏</li>
-          <li class="history-entry">历史</li>
+          <li class="favorite-entry v-popover-wrap">
+            <a class="right-entry__outside" data-header-fav-entry="true" href="https://space.bilibili.com/123/favlist" target="_blank">
+              <span class="right-entry-text">收藏</span>
+            </a>
+            <div class="v-popover is-bottom">
+              <div class="v-popover-content header-favorite-popover">
+                <div class="bili-video-card">收藏的视频卡片</div>
+                <a class="view-all-fav" href="https://space.bilibili.com/123/favlist" target="_blank">全部收藏</a>
+              </div>
+            </div>
+          </li>
+          <li class="history-entry v-popover-wrap">
+            <a class="right-entry__outside" href="https://www.bilibili.com/history" target="_blank">
+              <span class="right-entry-text">历史</span>
+            </a>
+            <div class="v-popover is-bottom">
+              <div class="v-popover-content header-history-popover">
+                <div class="bili-video-card">历史记录视频卡片</div>
+              </div>
+            </div>
+          </li>
           <li class="creator-entry">创作中心</li>
           <li class="upload-entry">投稿</li>
         </ul>
@@ -119,7 +138,36 @@ async function checkHome() {
   await expectHidden(page, '.trending');
   await expectHidden(page, '.suggest-item');
   await expectHidden(page, 'main');
+  await expectHidden(page, 'main .bili-video-card');
   await expectHidden(page, '.palette-button-wrap');
+
+  // Verify click on "收藏" prevents navigation and pins popover open ("点一下悬停")
+  let popupOpened = false;
+  context.on('page', () => { popupOpened = true; });
+
+  await page.locator('.favorite-entry .right-entry__outside').click();
+  assert(!popupOpened, 'clicking 收藏 should not open a new tab');
+  await expectVisible(page, '.favorite-entry .v-popover');
+  await expectVisible(page, '.favorite-entry .bili-video-card');
+
+  // Move mouse away to body, popover should remain visible because it is pinned
+  await page.mouse.move(10, 10);
+  await expectVisible(page, '.favorite-entry .v-popover');
+
+  // Click outside (e.g. on search input) should unpin and close popover
+  await page.locator('.nav-search-input').click();
+  await expectHidden(page, '.favorite-entry .v-popover');
+
+  // Verify click on "历史" also pins and displays popover video cards
+  await page.locator('.history-entry .right-entry__outside').click();
+  assert(!popupOpened, 'clicking 历史 should not open a new tab');
+  await expectVisible(page, '.history-entry .v-popover');
+  await expectVisible(page, '.history-entry .bili-video-card');
+
+  // Toggle off by clicking "历史" again
+  await page.locator('.history-entry .right-entry__outside').click();
+  await page.mouse.move(10, 10);
+  await expectHidden(page, '.history-entry .v-popover');
 
   await page.close();
 }
@@ -264,7 +312,12 @@ async function gotoFixture(page, url, body) {
       contentType: 'text/html; charset=utf-8',
       body: `<!doctype html>
         <html>
-          <head><meta charset="utf-8"></head>
+          <head>
+            <meta charset="utf-8">
+            <style>
+              .v-popover { display: none; }
+            </style>
+          </head>
           <body>${body}</body>
         </html>`,
     });

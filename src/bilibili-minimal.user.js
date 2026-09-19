@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         B站极简：保留搜索与当前内容
 // @namespace    http://tampermonkey.net/
-// @version      1.0.2
+// @version      1.0.3
 // @description  保留首页入口、搜索框、头像/私信/收藏/历史；隐藏热搜、首页推荐、直播入口、相关推荐和活动推广。
 // @author       You
 // @match        *://bilibili.com/*
@@ -44,6 +44,7 @@
     setAutoPlayOff();
     installStyle();
     patchHistory();
+    installEntryInteractions();
     start();
   }
 
@@ -89,8 +90,10 @@
       html[data-bili-minimal-page="home"] .channel-items__right,
       html[data-bili-minimal-page="home"] .primary-channel-menu,
       html[data-bili-minimal-page="home"] .recommended-swipe,
-      html[data-bili-minimal-page="home"] .feed-card,
-      html[data-bili-minimal-page="home"] .bili-video-card,
+      html[data-bili-minimal-page="home"] main .feed-card,
+      html[data-bili-minimal-page="home"] main .bili-video-card,
+      html[data-bili-minimal-page="home"] .feed-card:not(.bili-header *, .right-entry *, .v-popover *),
+      html[data-bili-minimal-page="home"] .bili-video-card:not(.bili-header *, .right-entry *, .v-popover *),
       html[data-bili-minimal-page="home"] .recommended-container,
       html[data-bili-minimal-page="home"] .palette-button-wrap,
       html[data-bili-minimal-page="home"] .feed-roll-btn,
@@ -138,6 +141,11 @@
         display: none !important;
       }
 
+      .v-popover-wrap:has([data-header-fav-entry]):hover > .v-popover,
+      .v-popover-wrap:has([data-idx="fav"]):hover > .v-popover,
+      .v-popover-wrap:has(a[href*="favlist"]):hover > .v-popover,
+      .v-popover-wrap:has([data-idx="history"]):hover > .v-popover,
+      .v-popover-wrap:has(a[href*="history"]):hover > .v-popover,
       .v-popover-wrap.favorite-entry:hover > .v-popover,
       .v-popover-wrap.history-entry:hover > .v-popover,
       .favorite-entry:hover > .v-popover,
@@ -145,24 +153,44 @@
       .v-popover-wrap.header-avatar-wrap:hover > .v-popover,
       .header-avatar-wrap:hover > .v-popover,
       .v-popover-wrap.message-entry:hover > .v-popover,
-      .message-entry:hover > .v-popover {
+      .message-entry:hover > .v-popover,
+      [data-bili-minimal-pinned="true"] > .v-popover,
+      [data-bili-minimal-pinned="true"] .v-popover {
         display: block !important;
         visibility: visible !important;
         opacity: 1 !important;
       }
 
+      .v-popover-wrap:has([data-header-fav-entry]) .v-popover,
+      .v-popover-wrap:has([data-idx="fav"]) .v-popover,
+      .v-popover-wrap:has(a[href*="favlist"]) .v-popover,
+      .v-popover-wrap:has([data-idx="history"]) .v-popover,
+      .v-popover-wrap:has(a[href*="history"]) .v-popover,
       .favorite-entry .v-popover,
       .history-entry .v-popover,
       .header-avatar-wrap .v-popover,
-      .message-entry .v-popover {
+      .message-entry .v-popover,
+      [data-bili-minimal-pinned="true"] .v-popover {
         pointer-events: auto !important;
       }
 
+      .v-popover-wrap:has([data-header-fav-entry]) .v-popover *,
+      .v-popover-wrap:has([data-idx="fav"]) .v-popover *,
+      .v-popover-wrap:has(a[href*="favlist"]) .v-popover *,
+      .v-popover-wrap:has([data-idx="history"]) .v-popover *,
+      .v-popover-wrap:has(a[href*="history"]) .v-popover *,
       .favorite-entry .v-popover *,
-      .history-entry .v-popover * {
+      .history-entry .v-popover *,
+      [data-bili-minimal-pinned="true"] .v-popover * {
         pointer-events: auto !important;
       }
 
+      html[data-bili-minimal-page="home"] .bili-header .v-popover .bili-video-card,
+      html[data-bili-minimal-page="home"] .bili-header .v-popover .feed-card,
+      html[data-bili-minimal-page="home"] .right-entry .bili-video-card,
+      html[data-bili-minimal-page="home"] .right-entry .feed-card,
+      html[data-bili-minimal-page="home"] .header-favorite-popover .bili-video-card,
+      html[data-bili-minimal-page="home"] .header-history-popover .bili-video-card,
       .favorite-entry .bili-video-card,
       .history-entry .bili-video-card,
       .favorite-entry .feed-card,
@@ -391,8 +419,8 @@
       '.channel-items__right',
       '.primary-channel-menu',
       '.recommended-swipe',
-      '.feed-card',
-      '.bili-video-card',
+      'main .feed-card',
+      'main .bili-video-card',
       '.recommended-container',
       '.palette-button-wrap',
       '.feed-roll-btn',
@@ -579,7 +607,8 @@
   function isProtectedPopoverContent(node) {
     return Boolean(node?.closest?.(
       '.header-favorite-popover, .header-history-popover, .favorite-panel-popover, .history-panel-popover, ' +
-      '[data-header-fav-entry="true"], .favorite-entry .v-popover, .history-entry .v-popover'
+      '[data-header-fav-entry="true"], .favorite-entry .v-popover, .history-entry .v-popover, ' +
+      '[data-bili-minimal-pinned="true"], .right-entry .v-popover, .bili-header .v-popover'
     ));
   }
 
@@ -708,4 +737,81 @@
 
     return /bilibili|B站|b站/i.test(`${text} ${attrs}`) && !TOP_NAV_RE.test(text);
   }
+
+  function installEntryInteractions() {
+    function isFavOrHistTrigger(el) {
+      if (!el || el.nodeType !== 1) return null;
+      const match = el.closest(
+        '[data-header-fav-entry="true"], [data-idx="fav"], [data-idx="history"], ' +
+        'a[href*="favlist"], a[href*="/history"], ' +
+        '.favorite-entry, .history-entry'
+      );
+      if (match) return match;
+
+      const linkOrOutside = el.closest('.right-entry__outside, a, li');
+      if (linkOrOutside) {
+        const text = normalize(linkOrOutside.innerText || linkOrOutside.textContent || '');
+        if (/^(收藏|历史)$/.test(text)) {
+          return linkOrOutside;
+        }
+      }
+      return null;
+    }
+
+    function getPopoverWrap(el) {
+      return el.closest('.v-popover-wrap, li');
+    }
+
+    function unpinAll(exceptWrap = null) {
+      document.querySelectorAll('[data-bili-minimal-pinned="true"]').forEach((wrap) => {
+        if (wrap !== exceptWrap) {
+          wrap.removeAttribute('data-bili-minimal-pinned');
+          wrap.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+        }
+      });
+    }
+
+    document.addEventListener('click', (e) => {
+      const target = e.target;
+      if (!target || target.nodeType !== 1) return;
+
+      if (target.closest('.v-popover, .header-favorite-popover, .header-history-popover')) {
+        return;
+      }
+
+      const trigger = isFavOrHistTrigger(target);
+      const clickedWrap = getPopoverWrap(target);
+
+      if (!trigger && (!clickedWrap || !clickedWrap.hasAttribute('data-bili-minimal-pinned'))) {
+        unpinAll();
+        return;
+      }
+
+      if (!trigger) return;
+
+      const wrap = getPopoverWrap(trigger);
+      if (!wrap) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      const isPinned = wrap.getAttribute('data-bili-minimal-pinned') === 'true';
+      if (isPinned) {
+        wrap.removeAttribute('data-bili-minimal-pinned');
+        wrap.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+      } else {
+        unpinAll(wrap);
+        wrap.setAttribute('data-bili-minimal-pinned', 'true');
+        wrap.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+        trigger.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+      }
+    }, true);
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        unpinAll();
+      }
+    });
+  }
 })();
+
