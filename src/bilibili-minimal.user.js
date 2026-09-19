@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         B站极简：保留搜索与当前内容
 // @namespace    http://tampermonkey.net/
-// @version      1.0.1
+// @version      1.0.2
 // @description  保留首页入口、搜索框、头像/私信/收藏/历史；隐藏热搜、首页推荐、直播入口、相关推荐和活动推广。
 // @author       You
 // @match        *://bilibili.com/*
@@ -137,6 +137,41 @@
       html[data-bili-minimal-page="search"] .elevator {
         display: none !important;
       }
+
+      .v-popover-wrap.favorite-entry:hover > .v-popover,
+      .v-popover-wrap.history-entry:hover > .v-popover,
+      .favorite-entry:hover > .v-popover,
+      .history-entry:hover > .v-popover,
+      .v-popover-wrap.header-avatar-wrap:hover > .v-popover,
+      .header-avatar-wrap:hover > .v-popover,
+      .v-popover-wrap.message-entry:hover > .v-popover,
+      .message-entry:hover > .v-popover {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+      }
+
+      .favorite-entry .v-popover,
+      .history-entry .v-popover,
+      .header-avatar-wrap .v-popover,
+      .message-entry .v-popover {
+        pointer-events: auto !important;
+      }
+
+      .favorite-entry .v-popover *,
+      .history-entry .v-popover * {
+        pointer-events: auto !important;
+      }
+
+      .favorite-entry .bili-video-card,
+      .history-entry .bili-video-card,
+      .favorite-entry .feed-card,
+      .history-entry .feed-card,
+      .header-favorite-popover .bili-video-card,
+      .header-history-popover .bili-video-card {
+        display: block !important;
+        visibility: visible !important;
+      }
     `;
     (document.head || document.documentElement).appendChild(style);
   }
@@ -233,7 +268,10 @@
 
   function cleanRightBar() {
     document.querySelectorAll('.right-entry').forEach((entry) => {
-      Array.from(entry.children).forEach((child, index) => {
+      const main = entry.querySelector('.right-entry__main');
+      const items = main ? Array.from(main.children) : Array.from(entry.children);
+
+      items.forEach((child, index) => {
         if (isKeptRightEntry(child, index)) {
           show(child);
           return;
@@ -241,6 +279,15 @@
 
         hide(child);
       });
+
+      if (main) {
+        show(main);
+        Array.from(entry.children).forEach((child) => {
+          if (child !== main && !isKeptRightEntry(child, -1)) {
+            hide(child);
+          }
+        });
+      }
     });
   }
 
@@ -256,15 +303,18 @@
     ]);
 
     document.querySelectorAll('a[href*="live.bilibili.com"]').forEach((anchor) => {
+      if (isProtectedPopoverContent(anchor)) return;
       const target = getLiveTarget(anchor);
       if (target) hide(target);
     });
 
     document.querySelectorAll('.search-tabs li, .vui_tabs--nav-item').forEach((tab) => {
+      if (isProtectedPopoverContent(tab)) return;
       if (SEARCH_TAB_HIDE_RE.test(normalize(tab.innerText || tab.textContent))) hide(tab);
     });
 
     document.querySelectorAll('.bili-video-card, .video-list-item, .feed-card, .user-list, .bili-user-card').forEach((card) => {
+      if (isProtectedPopoverContent(card)) return;
       const text = normalize(card.innerText || card.textContent);
       const hasLiveLink = Boolean(card.querySelector('a[href*="live.bilibili.com"]'));
       if (hasLiveLink || /直播中/.test(text)) {
@@ -286,7 +336,7 @@
     ]);
 
     document.querySelectorAll('.search-panel > *, .nav-search-panel > *').forEach((section) => {
-      if (isSearchHistory(section)) return;
+      if (isSearchHistory(section) || isProtectedPopoverContent(section)) return;
 
       const text = normalize(section.innerText || section.textContent);
       if (HOT_RE.test(text)) {
@@ -307,7 +357,7 @@
     });
 
     document.querySelectorAll('.center-search-container *, .nav-search *, .bili-header *').forEach((node) => {
-      if (isSearchHistory(node)) return;
+      if (isSearchHistory(node) || isProtectedPopoverContent(node) || node.closest('.right-entry')) return;
 
       const text = normalize(node.innerText || node.textContent);
       if (!text || (!HOT_RE.test(text) && !UPDATE_RE.test(text))) return;
@@ -497,12 +547,17 @@
 
   function hideAll(selectors) {
     selectors.forEach((selector) => {
-      document.querySelectorAll(selector).forEach(hide);
+      document.querySelectorAll(selector).forEach((el) => {
+        if (!isProtectedPopoverContent(el)) {
+          hide(el);
+        }
+      });
     });
   }
 
   function hide(el) {
     if (!el || el.nodeType !== 1) return;
+    if (isProtectedPopoverContent(el)) return;
     el.setAttribute(HIDDEN, 'true');
   }
 
@@ -518,6 +573,13 @@
   function isSearchHistory(el) {
     return Boolean(el?.closest?.(
       '.history, .histories, .history-item, .history-wrap, .histories-wrap, .search-history, .bili-search-history'
+    ));
+  }
+
+  function isProtectedPopoverContent(node) {
+    return Boolean(node?.closest?.(
+      '.header-favorite-popover, .header-history-popover, .favorite-panel-popover, .history-panel-popover, ' +
+      '[data-header-fav-entry="true"], .favorite-entry .v-popover, .history-entry .v-popover'
     ));
   }
 
@@ -547,6 +609,7 @@
   }
 
   function isKeptRightEntry(entry, index) {
+    if (!entry) return false;
     const text = normalize(entry.innerText || entry.textContent);
     const descriptor = [
       text,
@@ -560,7 +623,10 @@
       ].filter(Boolean).join(' ')).join(' '),
     ].filter(Boolean).join(' ');
 
-    if (index === 0 && /登录|头像|avatar|face|bili-avatar|header-avatar|go-login/i.test(descriptor)) return true;
+    if ((index === 0 || entry.classList.contains('header-avatar-wrap') || entry.classList.contains('avatar-entry')) &&
+        /登录|头像|avatar|face|bili-avatar|header-avatar|go-login/i.test(descriptor)) {
+      return true;
+    }
     if (RIGHT_ENTRY_KEEP_RE.test(text)) return true;
     if (/^(消息|私信|收藏|历史)/.test(text)) return true;
     if (/(message|whisper|fav|favorite|history)/i.test(descriptor)) return true;
@@ -569,12 +635,16 @@
 
   function getLiveTarget(node) {
     if (!node || node.nodeType !== 1) return null;
+    if (isProtectedPopoverContent(node) || node.closest('.right-entry')) return null;
 
-    return node.closest(
+    const target = node.closest(
       '.col_3, .col_xs_1_5, .col_md_2, .col_xl_1_7, .video-list-item, .bili-video-card, .feed-card, .search-card, .live-card, .live-card-wrap, ' +
       '.bili-dyn-list__item, .bili-dyn-card, .dyn-card, .user-list-item, .bili-user-card, ' +
       'li'
     ) || node.closest('a[href*="live.bilibili.com"], [class*="live"], [class*="living"]') || node;
+
+    if (isProtectedPopoverContent(target) || target.closest('.right-entry')) return null;
+    return target;
   }
 
   function getVideoPromoTarget(node) {
