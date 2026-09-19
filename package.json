@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "check": "node --check src/bilibili-minimal.user.js",
+    "check:release": "node tests/release-check.mjs",
     "test:fixture": "npx --yes --package playwright node tests/smoke-fixture.mjs",
     "test:real": "npx --yes --package playwright node tests/smoke-real.mjs"
   }
