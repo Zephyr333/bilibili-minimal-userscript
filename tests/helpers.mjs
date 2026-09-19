@@ -1,6 +1,6 @@
 import { createRequire } from 'node:module';
-import { existsSync } from 'node:fs';
-import { delimiter, dirname, resolve } from 'node:path';
+import { existsSync, readdirSync } from 'node:fs';
+import { delimiter, dirname, join, resolve } from 'node:path';
 
 export function requireNpxPackage(packageName) {
   const localRequire = createRequire(import.meta.url);
@@ -27,18 +27,63 @@ export function requireNpxPackage(packageName) {
   throw new Error(`Cannot resolve ${packageName}. Run this script through npx --package ${packageName}.`);
 }
 
+function findManagedChromium() {
+  const dirs = [
+    process.env.PLAYWRIGHT_BROWSERS_PATH,
+    'D:\\ms-playwright',
+    resolve(process.env.LOCALAPPDATA || '', 'ms-playwright'),
+  ].filter(Boolean);
+
+  const found = [];
+  for (const dir of dirs) {
+    if (!existsSync(dir)) continue;
+    try {
+      const entries = readdirSync(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+        if (entry.name.startsWith('chromium_headless_shell-')) {
+          found.push(join(dir, entry.name, 'chrome-headless-shell-win64', 'chrome-headless-shell.exe'));
+        } else if (entry.name.startsWith('chromium-')) {
+          found.push(join(dir, entry.name, 'chrome-win64', 'chrome.exe'));
+        }
+      }
+    } catch (_) {}
+  }
+  return found;
+}
+
 export async function launchInstalledChromium(chromium, options = {}) {
-  const candidates = [
+  // 1. Managed Playwright Chromium / Chrome Headless Shell (e.g. CFT in D:\ms-playwright)
+  const managedCandidates = [
     process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE,
+    ...findManagedChromium(),
+  ].filter(Boolean);
+
+  for (const executablePath of managedCandidates) {
+    if (!existsSync(executablePath)) continue;
+    try {
+      return await chromium.launch({ ...options, executablePath });
+    } catch (_) {}
+  }
+
+  // 2. Default launch
+  try {
+    return await chromium.launch(options);
+  } catch (_) {}
+
+  // 3. Fall back to installed system browsers (Chrome / Edge)
+  const systemCandidates = [
     'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
     'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
     'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
     'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
-  ].filter(Boolean);
+  ];
 
-  for (const executablePath of candidates) {
+  for (const executablePath of systemCandidates) {
     if (!existsSync(executablePath)) continue;
-    return chromium.launch({ ...options, executablePath });
+    try {
+      return await chromium.launch({ ...options, executablePath });
+    } catch (_) {}
   }
 
   return chromium.launch(options);

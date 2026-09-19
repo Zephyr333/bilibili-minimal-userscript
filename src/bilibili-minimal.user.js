@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         B站极简：保留搜索与当前内容
 // @namespace    http://tampermonkey.net/
-// @version      1.0.3
+// @version      1.0.4
 // @description  保留首页入口、搜索框、头像/私信/收藏/历史；隐藏热搜、首页推荐、直播入口、相关推荐和活动推广。
 // @author       You
 // @match        *://bilibili.com/*
@@ -565,12 +565,16 @@
       const original = history[name];
       history[name] = function (...args) {
         const result = original.apply(this, args);
+        unpinAllPopovers();
         setTimeout(runClean, 80);
         return result;
       };
     });
 
-    window.addEventListener('popstate', () => setTimeout(runClean, 80));
+    window.addEventListener('popstate', () => {
+      unpinAllPopovers();
+      setTimeout(runClean, 80);
+    });
   }
 
   function hideAll(selectors) {
@@ -738,6 +742,15 @@
     return /bilibili|B站|b站/i.test(`${text} ${attrs}`) && !TOP_NAV_RE.test(text);
   }
 
+  function unpinAllPopovers(exceptWrap = null) {
+    document.querySelectorAll('[data-bili-minimal-pinned="true"]').forEach((wrap) => {
+      if (wrap !== exceptWrap) {
+        wrap.removeAttribute('data-bili-minimal-pinned');
+        wrap.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+      }
+    });
+  }
+
   function installEntryInteractions() {
     function isFavOrHistTrigger(el) {
       if (!el || el.nodeType !== 1) return null;
@@ -762,15 +775,6 @@
       return el.closest('.v-popover-wrap, li');
     }
 
-    function unpinAll(exceptWrap = null) {
-      document.querySelectorAll('[data-bili-minimal-pinned="true"]').forEach((wrap) => {
-        if (wrap !== exceptWrap) {
-          wrap.removeAttribute('data-bili-minimal-pinned');
-          wrap.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
-        }
-      });
-    }
-
     document.addEventListener('click', (e) => {
       const target = e.target;
       if (!target || target.nodeType !== 1) return;
@@ -783,24 +787,28 @@
       const clickedWrap = getPopoverWrap(target);
 
       if (!trigger && (!clickedWrap || !clickedWrap.hasAttribute('data-bili-minimal-pinned'))) {
-        unpinAll();
+        unpinAllPopovers();
         return;
       }
 
       if (!trigger) return;
 
+      // Allow middle-click or modifier keys (Ctrl/Cmd/Shift/Alt) to open link in new tab
+      if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) {
+        return;
+      }
+
       const wrap = getPopoverWrap(trigger);
       if (!wrap) return;
 
       e.preventDefault();
-      e.stopPropagation();
 
       const isPinned = wrap.getAttribute('data-bili-minimal-pinned') === 'true';
       if (isPinned) {
         wrap.removeAttribute('data-bili-minimal-pinned');
         wrap.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
       } else {
-        unpinAll(wrap);
+        unpinAllPopovers(wrap);
         wrap.setAttribute('data-bili-minimal-pinned', 'true');
         wrap.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
         trigger.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
@@ -809,7 +817,7 @@
 
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
-        unpinAll();
+        unpinAllPopovers();
       }
     });
   }

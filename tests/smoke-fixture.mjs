@@ -40,7 +40,7 @@ async function checkLiveRedirect() {
     });
   });
 
-  await page.goto('https://live.bilibili.com/123');
+  await page.goto('https://live.bilibili.com/123').catch(() => {});
   await page.waitForURL('https://www.bilibili.com/', { timeout: 10000 });
   assert(page.url() === 'https://www.bilibili.com/', 'live pages should redirect to homepage');
 
@@ -164,10 +164,16 @@ async function checkHome() {
   await expectVisible(page, '.history-entry .v-popover');
   await expectVisible(page, '.history-entry .bili-video-card');
 
-  // Toggle off by clicking "历史" again
-  await page.locator('.history-entry .right-entry__outside').click();
+  // Verify route change unpins any pinned popover
+  await page.locator('.favorite-entry .right-entry__outside').click();
+  await expectVisible(page, '.favorite-entry .v-popover');
+  await page.evaluate(() => history.pushState({}, '', 'https://www.bilibili.com/?page=2'));
   await page.mouse.move(10, 10);
-  await expectHidden(page, '.history-entry .v-popover');
+  await expectHidden(page, '.favorite-entry .v-popover');
+
+  // Verify modifier click (Ctrl+click) does not pin popover
+  await page.locator('.favorite-entry .right-entry__outside').click({ modifiers: ['Control'] });
+  assert(await page.locator('.favorite-entry').getAttribute('data-bili-minimal-pinned') === null, 'Ctrl+click should not pin popover');
 
   await page.close();
 }
