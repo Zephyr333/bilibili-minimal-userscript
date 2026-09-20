@@ -149,6 +149,9 @@ async function checkHome() {
   assert(!popupOpened, 'clicking 收藏 should not open a new tab');
   await expectVisible(page, '.favorite-entry .v-popover');
   await expectVisible(page, '.favorite-entry .bili-video-card');
+  const favStyle = await page.locator('.favorite-entry .v-popover').evaluate((el) => window.getComputedStyle(el));
+  assert(favStyle.right === '0px', 'favorite popover should align to right: 0');
+  assert(favStyle.left === 'auto', 'favorite popover should have left: auto');
 
   // Move mouse away to body, popover should remain visible because it is pinned
   await page.mouse.move(10, 10);
@@ -163,6 +166,9 @@ async function checkHome() {
   assert(!popupOpened, 'clicking 历史 should not open a new tab');
   await expectVisible(page, '.history-entry .v-popover');
   await expectVisible(page, '.history-entry .bili-video-card');
+  const histStyle = await page.locator('.history-entry .v-popover').evaluate((el) => window.getComputedStyle(el));
+  assert(histStyle.right === '0px', 'history popover should align to right: 0');
+  assert(histStyle.left === 'auto', 'history popover should have left: auto');
 
   // Verify route change unpins any pinned popover
   await page.locator('.favorite-entry .right-entry__outside').click();

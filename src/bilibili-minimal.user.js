@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         B站极简：保留搜索与当前内容
 // @namespace    http://tampermonkey.net/
-// @version      1.0.4
+// @version      1.0.5
 // @description  保留首页入口、搜索框、头像/私信/收藏/历史；隐藏热搜、首页推荐、直播入口、相关推荐和活动推广。
 // @author       You
 // @match        *://bilibili.com/*
@@ -199,6 +199,23 @@
       .header-history-popover .bili-video-card {
         display: block !important;
         visibility: visible !important;
+      }
+
+      .v-popover-wrap:has([data-header-fav-entry]) > .v-popover,
+      .v-popover-wrap:has([data-idx="fav"]) > .v-popover,
+      .v-popover-wrap:has(a[href*="favlist"]) > .v-popover,
+      .v-popover-wrap:has([data-idx="history"]) > .v-popover,
+      .v-popover-wrap:has(a[href*="history"]) > .v-popover,
+      .v-popover-wrap.favorite-entry > .v-popover,
+      .v-popover-wrap.history-entry > .v-popover,
+      .favorite-entry > .v-popover,
+      .history-entry > .v-popover,
+      .favorite-entry .v-popover,
+      .history-entry .v-popover,
+      .v-popover:has(.header-favorite-popover, .header-history-popover, .favorite-panel-popover, .history-panel-popover) {
+        left: auto !important;
+        right: 0 !important;
+        transform: none !important;
       }
     `;
     (document.head || document.documentElement).appendChild(style);
